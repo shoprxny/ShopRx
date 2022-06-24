@@ -507,8 +507,8 @@ namespace RxFair.Areas.Distributor.Controllers
                 var result = _distributorSubscription.GetSingle(x => x.DistributorId == model.DistributorId);
                 if (result != null)
                 {
-                    if (result.SubscriptionTypeId == model.SubscriptionTypeId || result.SubscriptionTypeId > model.SubscriptionTypeId)
-                        return JsonResponse.GenerateJsonResult(0, "Distributor subsription can't be same or downgraded !");
+                    //if (result.SubscriptionTypeId == model.SubscriptionTypeId || result.SubscriptionTypeId > model.SubscriptionTypeId)
+                    //    return JsonResponse.GenerateJsonResult(0, "Distributor subsription can't be same or downgraded !");
 
                     sessionModel = Accessor.HttpContext.Session.GetObjectFromJson<DistributorSubscriptionDto>("NewSubscriptionActivation");
                     if (sessionModel == null)
@@ -544,8 +544,96 @@ namespace RxFair.Areas.Distributor.Controllers
 
                     //string payerId = Request.Params["PayerID"];
                     var payerId = HttpContext.Request.Query["PayerID"].ToString();
+                    if(subscriptionAmount == "0")
+                    {
+                        // This function exectues after receving all parameters for the payment
+                        var guid = HttpContext.Request.Query["guid"];
 
-                    if (string.IsNullOrEmpty(payerId))
+                        var model = Accessor.HttpContext.Session.GetObjectFromJson<DistributorSubscriptionDto>("NewSubscriptionActivation");
+                        if (model == null) return View("FailureView");
+                        if (model.Id == 0)
+                        {
+                            var subscriptionType = _subscriptionType.GetSingle(x => x.Id == model.SubscriptionTypeId);
+                            //  var startDate = Convert.ToDateTime(model.DateStart);
+                            var startDate = Convert.ToDateTime(DateTime.UtcNow.Date);
+                            var distributerSubscription = new DistributorSubscription
+                            {
+                                DistributorId = model.DistributorId,
+                                Notes = model.Notes,
+                                StartDate = startDate,
+                                EndDate = startDate.AddMonths(GetDefaultSubscriptionPlanDuration()),
+                                SubscriptionTypeId = model.SubscriptionTypeId,
+                                ChargedMonthly = subscriptionType.ChargedMonthly,
+                                SubscriptionCharge = subscriptionType.SubscriptionCharge,
+                                Brand = subscriptionType.Brand,
+                                Generic = subscriptionType.Generic,
+                                Otc = subscriptionType.Otc,
+                                IsActive = true,
+                                IsPayment = true,
+                                PaymentDate = DateTime.UtcNow
+                            };
+                            await _distributorSubscription.InsertAsync(distributerSubscription, Accessor, User.GetUserId());
+                            var distributorUser = _distributor.GetById(model.DistributorId).DistributorAdminUser;
+                            #region Send Mail After Subscription Plan Payment
+                            var subscriptionTemplate = CommonMethod.ReadEmailTemplate(ErrorLog, HostingEnvironment.WebRootPath, EmailTemplateFileList.Subscription, GetPhysicalUrl());
+                            subscriptionTemplate = subscriptionTemplate.Replace("{UserName}", distributorUser.FullName);
+                            //await _emailService.SendEmailAsyncByGmail(new SendEmailModel
+                            //{
+                            //    ToAddress = distributorUser.Email,
+                            //    Subject = "Subscription Activation",
+                            //    BodyText = subscriptionTemplate,
+                            //    ToDisplayName = distributorUser.FullName
+                            //});
+                            #endregion
+                            txscope.Complete();
+                            await _signInManager.SignOutAsync();
+                            return RedirectToAction(nameof(AccountController.Login), "Account");
+                        }
+                        var result = _distributorSubscription.GetSingle(x => x.DistributorId == model.Id);
+
+                        if (result == null) return View("FailureView");
+                        if (result.SubscriptionTypeId == model.SubscriptionTypeId || result.SubscriptionTypeId > model.SubscriptionTypeId)
+                        {
+                            txscope.Dispose();
+                            return View("FailureView");
+                        }
+
+                        //Insert Old Subscription Details into distributorsubscriptionHistory Table
+
+                        DistributorSubscriptionHistory dsh = new DistributorSubscriptionHistory
+                        {
+                            ChargedMonthly = result.ChargedMonthly,
+                            Brand = result.Brand,
+                            Generic = result.Generic,
+                            Otc = result.Otc,
+                            IsActive = result.IsActive,
+                            StartDate = result.StartDate,
+                            EndDate = result.EndDate,
+                            SubscriptionTypeId = result.SubscriptionTypeId,
+                            Notes = result.Notes,
+                            IsPayment = result.IsPayment,
+                            PaymentDate = result.PaymentDate,
+                            PayPalTransactionId = result.PayPalTransactionId,
+                            DistributorId = result.DistributorId
+                        };
+                        await _distributorSubscriptionHistory.InsertAsync(dsh, Accessor, User.GetUserId());
+
+
+
+                        result.IsActive = true;
+                        result.StartDate = Convert.ToDateTime(model.DateStart);
+                        result.EndDate = result.StartDate.AddMonths(12);
+                        result.SubscriptionTypeId = model.SubscriptionTypeId;
+                        result.Notes = model.Notes;
+                        result.IsPayment = true;
+                        result.PaymentDate = DateTime.UtcNow;
+                        var UpdatedSubscription = await _distributorSubscription.UpdateAsync(result, Accessor, User.GetUserId());
+
+                        txscope.Complete();
+                        await _signInManager.SignOutAsync();
+                        return Redirect("/Home/SuccessView");
+                    }
+                    else if (string.IsNullOrEmpty(payerId))
                     {
                         //this section will be executed first because PayerID doesn't exist it is returned by the create function call of the payment class
 
