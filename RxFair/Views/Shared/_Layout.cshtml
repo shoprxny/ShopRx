@@ -38,12 +38,6 @@
                     <a class="nav-link @((string) ViewData["Title"] == "New Distributor" ? "active" : "")" href="/NewDistributor">New Distributor</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @((string) ViewData["Title"] == "AboutUs" ? "active" : "")" href="/Home/AboutUs">About Us</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @((string) ViewData["Title"] == "Blogs" ? "active" : "")" href="/Blogs">Blogs</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link @((string) ViewData["Title"] == "ContactUs" ? "active" : "")" href="/Home/ContactUs">Contact Us</a>
                 </li>
             </ul>
@@ -79,37 +73,6 @@
                     <div class="footer_title">
                         <h5>Contact Information</h5>
                         @(await Component.InvokeAsync("ContactUs"))
-                    </div>
-                </div>
-                <div class="col-md-4 margin_t">
-                    <div class="footer_title">
-                        <h5>Helpful Links</h5>
-                    </div>
-                    <div class="footer_one">
-                        <ul>
-                            <li><i class="fa fa-genderless" aria-hidden="true"></i><a href="~/Home/AboutUs">About Us</a></li>
-                            <li><i class="fa fa-genderless" aria-hidden="true"></i><a href="~/Home/Faqs">FAQs</a></li>
-                            <li><i class="fa fa-genderless" aria-hidden="true"></i><a href="~/Home/TermsCondition">Terms and Conditions</a></li>
-                            <li class="p-0"><i class="fa fa-genderless" aria-hidden="true"></i><a href="~/Home/ContactUs">Contact Us</a></li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="footer_title">
-                        <h5>Follow us</h5>
-                    </div>
-                    <div class="footer_social">
-                        <ul>
-                            <li>
-                                <a href="javascript:;"><i class="fa fa-facebook"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:;"><i class="fa fa-twitter"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:;"><i class="fa fa-linkedin"></i></a>
-                            </li>
-                        </ul>
                     </div>
                 </div>
             </div>
