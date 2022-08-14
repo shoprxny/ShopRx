@@ -184,14 +184,26 @@ namespace RxFair.Utility.Common
             try
             {
                 // Upload file duplicate ndc
-                var modelNdcDuplicate = model.UploadMedicines.GroupBy(x => x.Ndc).Where(x => x.Count() > 1)
-                    .Select(x => x.Key).ToList();
+                var modelNdcDuplicate = model.UploadMedicines.GroupBy(x => new
+                {
+                    x.Ndc,
+                    x.MedicineName
+                }).Where(x => x.Count() > 1)
+                    .Select(x => new
+                    {
+                        x.Key.Ndc,
+                        x.Key.MedicineName
+                    }).ToList();
 
                 // Remove duplicate medicine from upload file model
-                model.UploadMedicines = model.UploadMedicines.Where(x => !modelNdcDuplicate.Contains(x.Ndc)).ToList();
+                model.UploadMedicines = model.UploadMedicines.Where(x => !modelNdcDuplicate.Where(y =>y.Ndc == x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
 
                 // Find unique ndc from upload file
-                var modelNdc = model.UploadMedicines.Select(x => x.Ndc).ToList();
+                var modelNdc = model.UploadMedicines.Select(x => new
+                {
+                    x.Ndc,
+                    x.MedicineName
+                }).ToList();
 
                 #region Upload File Data
                 var dosageFormList = model.UploadMedicines.GroupBy(x => x.DosageForm).Select(x => x.Key).ToList();
@@ -297,15 +309,15 @@ namespace RxFair.Utility.Common
                 #endregion
 
                 #region Database Data
-                var dbNdc = _medicine.GetAll(x => x.DistributorId == distributorId).Select(x => x.NdcUpcHri).ToList();
-                var dbExistNdc = dbNdc.Where(x => modelNdc.Contains(x)).ToList();
-                var newNdcList = modelNdc.Except(dbExistNdc).ToList();
+                var dbNdc = _medicine.GetAll(x => x.DistributorId == distributorId).Select(x =>new { x.NdcUpcHri, x.DrugName } ).ToList();
+                var dbExistNdc = dbNdc.Where(x => modelNdc.Where(y => y.Ndc == x.NdcUpcHri && y.MedicineName == x.DrugName).Any()).ToList();
+                var newNdcList = modelNdc.Where(x => !dbExistNdc.Where(y => y.NdcUpcHri == x.Ndc && y.DrugName == x.MedicineName).Any()).ToList();
                 #endregion
 
                 #region Update Exist Medicine
                 if (dbExistNdc.Any())
                 {
-                    var editExistMedicines = model.UploadMedicines.Where(x => dbExistNdc.Contains(x.Ndc)).ToList();
+                    var editExistMedicines = model.UploadMedicines.Where(x => dbExistNdc.Where(y => y.NdcUpcHri == x.Ndc && y.DrugName == x.MedicineName).Any()).ToList();
                     foreach (var item in editExistMedicines)
                     {
                         var single = _medicine.GetSingle(x => x.NdcUpcHri == item.Ndc && x.DistributorId == distributorId);
@@ -335,7 +347,7 @@ namespace RxFair.Utility.Common
                 if (!newNdcList.Any()) return true;
                 {
                     var addMedicines = new List<MedicineMaster>();
-                    var newMedicines = model.UploadMedicines.Where(x => newNdcList.Contains(x.Ndc)).ToList();
+                    var newMedicines = model.UploadMedicines.Where(x => newNdcList.Where(y=>y.Ndc== x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
                     foreach (var item in newMedicines)
                     {
                         addMedicines.Add(new MedicineMaster
@@ -463,26 +475,38 @@ namespace RxFair.Utility.Common
             try
             {
                 // Upload file duplicate ndc
-                var modelNdcDuplicate = model.UploadMedicines.GroupBy(x => x.Ndc).Where(x => x.Count() > 1)
-                    .Select(x => x.Key).ToList();
+                var modelNdcDuplicate = model.UploadMedicines.GroupBy(x => new
+                {
+                    x.Ndc,
+                    x.MedicineName
+                }).Where(x => x.Count() > 1)
+                    .Select(x => new
+                    {
+                        x.Key.Ndc,
+                        x.Key.MedicineName
+                    }).ToList();
 
                 // Remove duplicate medicine from upload file model
-                model.UploadMedicines = model.UploadMedicines.Where(x => !modelNdcDuplicate.Contains(x.Ndc)).ToList();
-
+                model.UploadMedicines = model.UploadMedicines.Where(x => !modelNdcDuplicate.Where(y => y.Ndc == x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
                 // Find unique ndc from upload file
-                var modelNdc = model.UploadMedicines.Select(x => x.Ndc).ToList();
+                var modelNdc = model.UploadMedicines.Select(x => new
+                {
+                    x.Ndc,
+                    x.MedicineName
+                }).ToList();
 
                 #region Database Data
-                var dbNdc = _medicine.GetAll(x => x.DistributorId == distributorId).Select(x => x.NdcUpcHri).ToList(); // ALL NDC base on distributorId
-                var dbExistNdc = dbNdc.Where(x => modelNdc.Contains(x)).ToList(); // Find exist NDC list from Medicine Master
-                                                                                  //update medicine
-                var updateExist = _medicine.GetAll().Where(x => dbExistNdc.Contains(x.NdcUpcHri) && x.DistributorId == distributorId);
+                var dbNdc = _medicine.GetAll(x => x.DistributorId == distributorId).Select(x => new { x.NdcUpcHri, x.DrugName }).ToList();
+                var dbExistNdc = dbNdc.Where(x => modelNdc.Where(y => y.Ndc == x.NdcUpcHri && y.MedicineName == x.DrugName).Any()).ToList();
+                // Find exist NDC list from Medicine Master
+                //update medicine
+                var updateExist = _medicine.GetAll().Where(x => dbExistNdc.Where(y=> y.NdcUpcHri == x.NdcUpcHri && y.DrugName == x.DrugName).Any()&&x.DistributorId == distributorId);
                 int i = 0;
                 foreach (var item in dbExistNdc)
                 {
                     i++;
-                    var modelData = model.UploadMedicines.FirstOrDefault(x => x.Ndc == item);
-                    var single = updateExist.FirstOrDefault(x => x.NdcUpcHri == item);
+                    var modelData = model.UploadMedicines.FirstOrDefault(x => x.Ndc == item.NdcUpcHri && x.MedicineName == item.DrugName);
+                    var single = updateExist.FirstOrDefault(x => x.NdcUpcHri == item.NdcUpcHri   && x.DrugName == item.DrugName);
                     if (single == null) continue;
                     single.DrugName = modelData.MedicineName;
                     single.Strength = modelData.Strength;
@@ -500,11 +524,14 @@ namespace RxFair.Utility.Common
 
                 #region Update UploadMedicine table
                 //check for uplaod medicine 
-                var newUploadedNdcList = modelNdc.Except(dbExistNdc).ToList(); // Find new upload ndc list from upload file
+                var newUploadedNdcList = modelNdc.Where(x=>!dbExistNdc.Where(y=>y.NdcUpcHri == x.Ndc && y.DrugName == x.MedicineName).Any()).ToList(); // Find new upload ndc list from upload file
 
-                var dbUploadedNdc = _uploadedMedicine.GetAll(x => x.DistributorId == distributorId).Select(x => x.Ndc).ToList();
-
-                var existUploadedNdcList = dbUploadedNdc.Where(x => newUploadedNdcList.Contains(x)).ToList();
+                var dbUploadedNdc = _uploadedMedicine.GetAll(x => x.DistributorId == distributorId).Select(x => new
+                {
+                    x.Ndc,
+                    x.MedicineName
+                }).ToList();
+                var existUploadedNdcList = dbUploadedNdc.Where(x => newUploadedNdcList.Where(y=>y.Ndc == x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
 
                 var notExistUploadedNdcList = existUploadedNdcList.Except(dbUploadedNdc).ToList();
 
@@ -515,7 +542,7 @@ namespace RxFair.Utility.Common
                 }
                 // Select Exist Medicine From UploadedNdcList
 
-                var exist = model.UploadMedicines.Where(x => existUploadedNdcList.Contains(x.Ndc)).ToList();
+                var exist = model.UploadMedicines.Where(x => existUploadedNdcList.Where(y => y.Ndc == x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
                 var editUpMed = _uploadedMedicine.GetAll(x => x.DistributorId == distributorId && exist.Select(y => y.Ndc).Contains(x.Ndc))
                     .ToList();
                 foreach (var item in exist)
@@ -541,7 +568,7 @@ namespace RxFair.Utility.Common
 
                 // Add Medicine From UploadedNdcList
                 //var finalUploadNdc = newUploadedNdcList.Except(existUploadedNdcList).ToList();
-                var newUploadNdc = model.UploadMedicines.Where(x => notExistUploadedNdcList.Contains(x.Ndc))
+                var newUploadNdc = model.UploadMedicines.Where(x => notExistUploadedNdcList.Where(y=>y.Ndc ==  x.Ndc && y.MedicineName == x.MedicineName).Any())
                     .Select(item => new UploadedMedicine
                     {
                         Ndc = item.Ndc,
