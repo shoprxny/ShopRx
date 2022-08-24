@@ -310,7 +310,7 @@ namespace RxFair.Utility.Common
 
                 #region Database Data
                 var dbNdc = _medicine.GetAll(x => x.DistributorId == distributorId).Select(x =>new { x.NdcUpcHri, x.DrugName } ).ToList();
-                var dbExistNdc = dbNdc.Where(x => modelNdc.Where(y => y.Ndc == x.NdcUpcHri && y.MedicineName == x.DrugName).Any()).ToList();
+                var dbExistNdc = dbNdc.Where(x => modelNdc.Any(y => y.Ndc == x.NdcUpcHri && y.MedicineName == x.DrugName)).ToList();
                 var newNdcList = modelNdc.Where(x => !dbExistNdc.Where(y => y.NdcUpcHri == x.Ndc && y.DrugName == x.MedicineName).Any()).ToList();
                 #endregion
 
@@ -500,7 +500,9 @@ namespace RxFair.Utility.Common
                 var dbExistNdc = dbNdc.Where(x => modelNdc.Where(y => y.Ndc == x.NdcUpcHri && y.MedicineName == x.DrugName).Any()).ToList();
                 // Find exist NDC list from Medicine Master
                 //update medicine
-                var updateExist = _medicine.GetAll().Where(x => dbExistNdc.Where(y=> y.NdcUpcHri == x.NdcUpcHri && y.DrugName == x.DrugName).Any()&&x.DistributorId == distributorId);
+                var all = _medicine.GetAll().ToList();
+                var updateExist = all.Where(x => dbExistNdc.Any(y=> y.NdcUpcHri == x.NdcUpcHri && y.DrugName == x.DrugName));
+                updateExist = updateExist.Where(x => x.DistributorId == distributorId).ToList();
                 int i = 0;
                 foreach (var item in dbExistNdc)
                 {
@@ -533,7 +535,7 @@ namespace RxFair.Utility.Common
                 }).ToList();
                 var existUploadedNdcList = dbUploadedNdc.Where(x => newUploadedNdcList.Where(y=>y.Ndc == x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
 
-                var notExistUploadedNdcList = existUploadedNdcList.Except(dbUploadedNdc).ToList();
+                var notExistUploadedNdcList = newUploadedNdcList.Except(existUploadedNdcList).ToList();
 
 
                 if (notExistUploadedNdcList.Count == 0 && existUploadedNdcList.Count == 0)
@@ -543,11 +545,11 @@ namespace RxFair.Utility.Common
                 // Select Exist Medicine From UploadedNdcList
 
                 var exist = model.UploadMedicines.Where(x => existUploadedNdcList.Where(y => y.Ndc == x.Ndc && y.MedicineName == x.MedicineName).Any()).ToList();
-                var editUpMed = _uploadedMedicine.GetAll(x => x.DistributorId == distributorId && exist.Select(y => y.Ndc).Contains(x.Ndc))
+                var editUpMed = _uploadedMedicine.GetAll(x => x.DistributorId == distributorId && exist.Where(y=>y.Ndc== x.Ndc && y.MedicineName == x.MedicineName).Any())
                     .ToList();
                 foreach (var item in exist)
                 {
-                    var single = editUpMed.FirstOrDefault(x => x.Ndc == item.Ndc);
+                    var single = editUpMed.FirstOrDefault(x => x.Ndc == item.Ndc && x.MedicineName == item.MedicineName);
                     if (single == null) continue;
                     single.Upc = item.Upc;
                     single.MedicineName = item.MedicineName;
